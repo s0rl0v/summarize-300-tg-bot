@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+  app:
+    image: s0rl0v/summarize-300-tg-bot:v0.0.2
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      YANDEX_OAUTH: ${YANDEX_OAUTH}
+      YANDEX_COOKIE: ${YANDEX_COOKIE}
+      DEVELOPER_CHAT_ID: ${DEVELOPER_CHAT_ID}

@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "summarize-300-tg-bot"
+version = "0.1.0"
+description = "A Telegram bot that interacts with 300 Yandex GPT API and returns summarized text on the article"
+authors = ["Sergey Orlov <contact@s0rl0v.com>"]
+license = "GNU GPLv3"
+readme = "README.md"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+python-telegram-bot = "^21.1.1"
+requests = "^2.31.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
