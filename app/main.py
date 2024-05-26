@@ -120,15 +120,15 @@ class Summarize300Client:
             counter += 1
             response = self.__send_request(json=json_payload)
             response_json = response.json()
+            logging.debug(response_json)
             if 'status_code' not in response_json:
                 logging.error(f"{url} backend error: {response_json}")
                 self.buffer.add("Incorrect payload, 300 Yandex backend temporarily unavailable")
                 return self.buffer
-
             status_code = response_json['status_code']
-            if status_code > 3:
+            if status_code >= 3:
                 logging.error(f"{url} returned status_code > 2")
-                self.buffer.add("{url} is not eligible for summarization by Yandex LLM")
+                self.buffer.add(f"{url} is not eligible for summarization by Yandex LLM")
                 return self.buffer
             if 'poll_interval_ms' in response_json:
                 poll_interval_ms = response_json['poll_interval_ms']
@@ -168,9 +168,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(os.environ['TELEGRAM_BOT_TOKEN']).build()
-    echo_handler = MessageHandler(filters.TEXT & (~filters.COMMAND) \
-                                  & ((filters.Entity("mention") & (filters.ChatType.GROUP | filters.ChatType.SUPERGROUP)) \
-                                     | (filters.ChatType.PRIVATE)), message_handler)
+    echo_handler = MessageHandler(filters.TEXT, message_handler)
     application.bot_data['YANDEX_OAUTH'] = os.environ['YANDEX_OAUTH']
     application.bot_data['YANDEX_COOKIE'] = os.environ['YANDEX_COOKIE']
     application.bot_data['DEVELOPER_CHAT_ID'] = os.environ['DEVELOPER_CHAT_ID']
