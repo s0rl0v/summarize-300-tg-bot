@@ -198,7 +198,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 if __name__ == '__main__':
     application = ApplicationBuilder().token(os.environ['TELEGRAM_BOT_TOKEN']).build()
     echo_handler = MessageHandler(filters.TEXT & (~filters.COMMAND) \
-                                  & ((filters.Entity("mention") & filters.ChatType.GROUP) \
+                                  & ((filters.Entity("mention") & (filters.ChatType.GROUP | filters.ChatType.SUPERGROUP)) \
                                      | (filters.ChatType.PRIVATE)), message_handler)
     application.bot_data['YANDEX_OAUTH'] = os.environ['YANDEX_OAUTH']
     application.bot_data['YANDEX_COOKIE'] = os.environ['YANDEX_COOKIE']
