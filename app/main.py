@@ -107,7 +107,7 @@ class Summarize300Client:
 
     def summarize_url(self, url) -> None:
         json_payload = {}
-        if "youtube" in url:
+        if "youtu" in url:
             json_payload['video_url'] = url
             parse_selector = self.__parse_video_summarization_json
         else:
