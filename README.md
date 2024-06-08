@@ -5,9 +5,14 @@ This is a simple Telegram bot that wraps 300 YandexGPT summarizer into Telegram 
 Python, python-telegram-bot.
 
 # Usage
-@Summarize300Bot or self-host it independently.
+Add [@Summarize300Bot](https://t.me/Summarize300Bot) to a group and pass URL as an argument to any command, e.g.:
+```
+/go@Summarize300Bot https://www.youtube.com/watch?v=ycfPF1gkNpE
+```
 
-# Build
+Or self-host it independently.
+
+# Development
 
 Install poetry and Python 3.12.
 Then fill `.env` config inside the project directory:
