@@ -91,7 +91,7 @@ class Summarize300Client:
 
     def __parse_video_summarization_json(self, url, data) -> None:
         if 'error_code' in data:
-            msg = f"{url} is not supported"
+            msg = f"{url} is not supported, Yandex API returned error_code {data['error_code']}"
             logging.error(msg)
             self.buffer.add(msg)
             return
@@ -123,12 +123,12 @@ class Summarize300Client:
             logging.debug(response_json)
             if 'status_code' not in response_json:
                 logging.error(f"{url} backend error: {response_json}")
-                self.buffer.add("Incorrect payload, 300 Yandex backend temporarily unavailable")
+                self.buffer.add("Yandex API is not available, try again later")
                 return self.buffer
             status_code = response_json['status_code']
             if status_code >= 3:
                 logging.error(f"{url} returned status_code > 2")
-                self.buffer.add(f"{url} is not eligible for summarization by Yandex LLM")
+                self.buffer.add(f"Yandex API returned status_code {status_code} when processing {url}, the link is not supported by Yandex backend")
                 return self.buffer
             if 'poll_interval_ms' in response_json:
                 poll_interval_ms = response_json['poll_interval_ms']
