@@ -155,6 +155,9 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         for match in matches:
             logging.debug(f"Processing URL: {match}")
+            await context.bot.send_message(chat_id=update.effective_chat.id, \
+                                text=f"Processing: {match}", parse_mode='html', \
+                                reply_to_message_id=update.message.id)
             summarizer = Summarize300Client(yandex_oauth_token=context.bot_data['YANDEX_OAUTH'], \
                                             yandex_cookie=context.bot_data['YANDEX_COOKIE'])
             buffer = summarizer.summarize_url(match)
