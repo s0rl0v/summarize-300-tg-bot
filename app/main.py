@@ -98,7 +98,7 @@ class Summarize300Client:
         if not "keypoints" in data:
             logging.error(f"{url}: there's no 'keypoints' in response")
             raise Exception
-        self.buffer.add(f"{data['video_title']}\n")
+        self.buffer.add(f"{data['title']}\n")
         for keypoint in data['keypoints']:
             self.buffer.add(f'<a href="{url}&t={keypoint['start_time']}">{int(int(keypoint['start_time'])/60/60 % 60):02}:{int(int(keypoint['start_time'])/60 % 60):02}:{int(int(keypoint['start_time']) % 60):02}</a> {keypoint['content']}\n')
             for thesis in keypoint['theses']:
@@ -160,7 +160,14 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                 reply_to_message_id=update.message.id)
             summarizer = Summarize300Client(yandex_oauth_token=context.bot_data['YANDEX_OAUTH'], \
                                             yandex_cookie=context.bot_data['YANDEX_COOKIE'])
-            buffer = summarizer.summarize_url(match)
+            try:
+                buffer = summarizer.summarize_url(match)
+            except Exception as e:
+                logging.debug(f"500 Internal server error: {e}")
+                await context.bot.send_message(chat_id=update.effective_chat.id, \
+                                               text="500 Internal Server Error, ping @sorloff", parse_mode='html', \
+                                               reply_to_message_id=update.message.id)
+                return
 
             for message in buffer.messages:
                 logging.debug(f"Will be sending to {update.effective_user.name} len {len(message)}: {message}")
