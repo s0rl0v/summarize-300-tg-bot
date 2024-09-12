@@ -13,6 +13,9 @@ from telegram.ext import ApplicationBuilder, ContextTypes, filters, MessageHandl
 # TODO: write Dockerfile
 # TODO: deployment variants (lambda vs vps)
 # TODO: serverless?
+# TODO: rewrite to accept file with headers to ad-hoc adjustome
+# TODO: rewrite to log request with readers and response with the samea
+# TODO: add logging and monitoring (especially cookies)
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -109,9 +112,11 @@ class Summarize300Client:
         json_payload = {}
         if "youtu" in url:
             json_payload['video_url'] = url
+            json_payload['type'] = "video"
             parse_selector = self.__parse_video_summarization_json
         else:
             json_payload['article_url'] = url
+            json_payload['type'] = "article"
             parse_selector = self.__parse_article_summarization_json
 
         counter = 0
