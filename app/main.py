@@ -1,21 +1,14 @@
-import html
-import json
 import os
 import re
+import string
 import time
-import traceback
 import requests
 import logging
 
-from telegram import Update
+from telegram import Message, Update
 from telegram.ext import ApplicationBuilder, ContextTypes, filters, MessageHandler, ApplicationBuilder, ContextTypes
+from telegram.constants import ChatAction
 
-# TODO: write Dockerfile
-# TODO: deployment variants (lambda vs vps)
-# TODO: serverless?
-# TODO: rewrite to accept file with headers to ad-hoc adjustome
-# TODO: rewrite to log request with readers and response with the samea
-# TODO: add logging and monitoring (especially cookies)
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -87,14 +80,14 @@ class Summarize300Client:
         self.buffer.add(f"{data['title']}\n\n")
         for keypoint in data['thesis']:
             self.buffer.add(f"\t• {keypoint['content']}")
-            if "link" in keypoint:
+            if "link" in keypoint and keypoint["link"]:
                 self.buffer.add(f"<a href=\"{keypoint['link']}\">Link</a>")
             self.buffer.add("\n")
         self.buffer.add("\n")
 
     def __parse_video_summarization_json(self, url, data) -> None:
         if 'error_code' in data:
-            msg = f"{url} is not supported, Yandex API returned error_code {data['error_code']}"
+            msg = f"The video is not supported, Yandex API returned error_code {data['error_code']}"
             logging.error(msg)
             self.buffer.add(msg)
             return
@@ -108,15 +101,19 @@ class Summarize300Client:
                 self.buffer.add(f"\t• {thesis['content']}\n")
             self.buffer.add("\n")
 
-    def summarize_url(self, url) -> None:
+    def summarize(self, text) -> None:
         json_payload = {}
-        if "youtu" in url:
-            json_payload['video_url'] = url
+        if "youtu" in text:
+            json_payload['video_url'] = text
             json_payload['type'] = "video"
             parse_selector = self.__parse_video_summarization_json
-        else:
-            json_payload['article_url'] = url
+        elif "http" in text:
+            json_payload['article_url'] = text
             json_payload['type'] = "article"
+            parse_selector = self.__parse_article_summarization_json
+        else:
+            json_payload['text'] = text
+            json_payload['type'] = "text"
             parse_selector = self.__parse_article_summarization_json
 
         counter = 0
@@ -124,16 +121,18 @@ class Summarize300Client:
         while(( status_code != 0 and status_code != 2) and counter < Summarize300Client.MAX_RETRIES):
             counter += 1
             response = self.__send_request(json=json_payload)
+            if response.status_code != 200:
+                raise Exception(f"Yandex 300 API returned {response.status_code}")
             response_json = response.json()
             logging.debug(response_json)
             if 'status_code' not in response_json:
-                logging.error(f"{url} backend error: {response_json}")
+                logging.error(f"{text} backend error: {response_json}")
                 self.buffer.add("Yandex API is not available, try again later")
                 return self.buffer
             status_code = response_json['status_code']
             if status_code >= 3:
-                logging.error(f"{url} returned status_code > 2")
-                self.buffer.add(f"Yandex API returned status_code {status_code} when processing {url}, the link is not supported by Yandex backend")
+                logging.error(f"{text} returned status_code > 2")
+                self.buffer.add(f"Yandex API returned status_code {status_code} when processing request, the link is not supported by Yandex backend")
                 return self.buffer
             if 'poll_interval_ms' in response_json:
                 poll_interval_ms = response_json['poll_interval_ms']
@@ -143,48 +142,56 @@ class Summarize300Client:
                 session_id = response_json['session_id']
                 json_payload['session_id'] = session_id
 
-        parse_selector(url, response_json)
+        parse_selector(text, response_json)
 
         return self.buffer
 
-async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logging.debug(f"Got message {update.message.text} from {update.effective_user.username}")
-    matches = re.findall("(?P<url>https?://[^\\s&]+)", update.message.text)
-    if not matches:
-        logging.debug("Got no links to process")
+async def processing_helper(text: string, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logging.debug(f"Processing {text}")
+    await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+    summarizer = Summarize300Client(yandex_oauth_token=context.bot_data['YANDEX_OAUTH'], \
+                                    yandex_cookie=context.bot_data['YANDEX_COOKIE'])
+    try:
+        buffer = summarizer.summarize(text)
+    except Exception as e:
+        logging.debug(f"500 Internal server error: {e}")
         await context.bot.send_message(chat_id=update.effective_chat.id, \
-                                       text="Usage: send a link to article/youtube video in private or mention with the link in a group chat", \
-                                       parse_mode='html')
+                                        text="500 Internal Server Error, ping @sorloff", parse_mode='html', \
+                                        reply_to_message_id=update.message.id)
+        return
+
+    for message in buffer.messages:
+        logging.debug(f"Will be sending to {update.effective_user.name} len {len(message)}: {message}")
+        await context.bot.send_message(chat_id=update.effective_chat.id, \
+                                        text=message, parse_mode='html', \
+                                        reply_to_message_id=update.message.id)
+
+async def reply_helper(message: Message, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    matches = re.findall("(?P<url>https?://[^\\s&]+)", message.text)
+
+    if not matches:
+        await processing_helper(message.text, update, context)
     else:
         logging.debug(f"Found matches: {matches}")
 
         for match in matches:
-            logging.debug(f"Processing URL: {match}")
-            await context.bot.send_message(chat_id=update.effective_chat.id, \
-                                text=f"Processing: {match}", parse_mode='html', \
-                                reply_to_message_id=update.message.id)
-            summarizer = Summarize300Client(yandex_oauth_token=context.bot_data['YANDEX_OAUTH'], \
-                                            yandex_cookie=context.bot_data['YANDEX_COOKIE'])
-            try:
-                buffer = summarizer.summarize_url(match)
-            except Exception as e:
-                logging.debug(f"500 Internal server error: {e}")
-                await context.bot.send_message(chat_id=update.effective_chat.id, \
-                                               text="500 Internal Server Error, ping @sorloff", parse_mode='html', \
-                                               reply_to_message_id=update.message.id)
-                return
+            await processing_helper(match, update, context)
 
-            for message in buffer.messages:
-                logging.debug(f"Will be sending to {update.effective_user.name} len {len(message)}: {message}")
-                await context.bot.send_message(chat_id=update.effective_chat.id, \
-                                               text=message, parse_mode='html', \
-                                               reply_to_message_id=update.message.id)
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logging.debug(f"{update.effective_user.username}: {update.message.text}")
+    if update.effective_message.reply_to_message:
+        logging.debug(f"Reply2: {update.effective_message.reply_to_message.from_user}: {update.effective_message.reply_to_message.text}")
+
+    if update.effective_message.reply_to_message:
+        await reply_helper(update.effective_message.reply_to_message, update, context)
+    else:
+        await reply_helper(update.effective_message, update, context)
 
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(os.environ['TELEGRAM_BOT_TOKEN']).build()
     echo_handler = MessageHandler(filters.TEXT & (
-                                      filters.COMMAND & (~ filters.REPLY) & (filters.ChatType.GROUP | filters.ChatType.SUPERGROUP) \
+                                      filters.Mention("Summarize300Bot") & (filters.ChatType.GROUP | filters.ChatType.SUPERGROUP) \
                                       | filters.ChatType.PRIVATE
                                   ), message_handler)
     application.bot_data['YANDEX_OAUTH'] = os.environ['YANDEX_OAUTH']
