@@ -131,8 +131,10 @@ class Summarize300Client:
                 return self.buffer
             status_code = response_json['status_code']
             if status_code >= 3:
-                logging.error(f"{text} returned status_code > 2")
-                self.buffer.add(f"Yandex API returned status_code {status_code} when processing request, the link is not supported by Yandex backend")
+                if "text" in json_payload['type']:
+                    self.buffer.add(f"Yandex API returned status_code {status_code} when processing text summarization request, are you sure that text lenght is more than 300 characters?")
+                else:
+                    self.buffer.add(f"Yandex API returned status_code {status_code} when processing request, the link is not supported by Yandex backend")
                 return self.buffer
             if 'poll_interval_ms' in response_json:
                 poll_interval_ms = response_json['poll_interval_ms']
