@@ -97,15 +97,15 @@ class Summarize300Client:
             logging.error(msg)
             self.buffer.add(msg)
             return
-        if "chapters" not in data:
-            logging.error(f"{url}: there's no 'chapters' in response")
+        if "keypoints" not in data:
+            logging.error(f"{url}: there's no 'keypoints' in response")
             raise Exception
         self.buffer.add(f"{data['title']}\n")
-        for chapter in data["chapters"]:
+        for keypoint in data["keypoints"]:
             self.buffer.add(
-                f'<a href="{url}&t={chapter["start_time"]}">{int(int(chapter["start_time"])/60/60 % 60):02}:{int(int(chapter["start_time"])/60 % 60):02}:{int(int(chapter["start_time"]) % 60):02}</a> {chapter["content"]}\n'
+                f'<a href="{url}&t={keypoint["start_time"]}">{int(int(keypoint["start_time"])/60/60 % 60):02}:{int(int(keypoint["start_time"])/60 % 60):02}:{int(int(keypoint["start_time"]) % 60):02}</a> {keypoint["content"]}\n'
             )
-            for thesis in chapter["theses"]:
+            for thesis in keypoint["theses"]:
                 self.buffer.add(f"\t• {thesis['content']}\n")
             self.buffer.add("\n")
 
