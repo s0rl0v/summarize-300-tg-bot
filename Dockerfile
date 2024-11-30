@@ -1,19 +1,21 @@
-FROM python:3.12-bookworm as build
+ARG PYTHON_VERSION=3.11
 
-WORKDIR /app
-
-COPY poetry.lock pyproject.toml ./
+FROM python:${PYTHON_VERSION}-slim AS build
+RUN pip install poetry && \
+    python3 -m venv /venv
 
 # Install poetry, export requirements.txt and install them into venv
-RUN pip install poetry && \
-    poetry config virtualenvs.in-project true && \
+FROM build AS build-env
+COPY poetry.lock pyproject.toml ./
+RUN poetry config virtualenvs.in-project true && \
     poetry export --only main --without-hashes --output /tmp/requirements.txt && \
-    python3 -m venv /venv && \
     /venv/bin/pip install --no-cache-dir --no-deps -r /tmp/requirements.txt
 
 # Use distroless image for small footprint and security
-FROM python:3.12-alpine
-COPY --from=build /venv /venv
-COPY app/main.py /app/
+FROM gcr.io/distroless/python3-debian12:nonroot
+ARG PYTHON_VERSION
+COPY --from=build-env /venv/lib/python$PYTHON_VERSION/site-packages /usr/local/lib/python$PYTHON_VERSION/site-packages
+COPY ./app/main.py /app/main.py
 WORKDIR /app
-ENTRYPOINT ["/venv/bin/python", "main.py"]
+ENV PYTHONPATH=/usr/local/lib/python$PYTHON_VERSION/site-packages
+CMD ["main.py"]
