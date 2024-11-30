@@ -74,14 +74,17 @@ class Summarize300Client:
         return response
 
     def __parse_article_summarization_json(self, url, data) -> None:
-        if not "thesis" in data:
+        if not "chapters" in data:
             logging.error("{url}: there's no 'thesis' in response body")
             raise Exception
-        self.buffer.add(f"{data['title']}\n\n")
-        for keypoint in data['thesis']:
-            self.buffer.add(f"\t• {keypoint['content']}")
-            if "link" in keypoint and keypoint["link"]:
-                self.buffer.add(f"<a href=\"{keypoint['link']}\">Link</a>")
+        self.buffer.add(f"<b>{data['title']}</b>\n\n")
+        for chapter in data['chapters']:
+            self.buffer.add(f"<b>{chapter['content']}</b>\n")
+            for thesis in chapter['theses']:
+                self.buffer.add(f"\t• {thesis['content']}")
+                if "link" in thesis and thesis["link"]:
+                    self.buffer.add(f"<a href=\"{thesis['link']}\">Link</a>")
+                self.buffer.add("\n")
             self.buffer.add("\n")
         self.buffer.add("\n")
 
@@ -91,13 +94,13 @@ class Summarize300Client:
             logging.error(msg)
             self.buffer.add(msg)
             return
-        if not "keypoints" in data:
-            logging.error(f"{url}: there's no 'keypoints' in response")
+        if not "chapters" in data:
+            logging.error(f"{url}: there's no 'chapters' in response")
             raise Exception
         self.buffer.add(f"{data['title']}\n")
-        for keypoint in data['keypoints']:
-            self.buffer.add(f'<a href="{url}&t={keypoint['start_time']}">{int(int(keypoint['start_time'])/60/60 % 60):02}:{int(int(keypoint['start_time'])/60 % 60):02}:{int(int(keypoint['start_time']) % 60):02}</a> {keypoint['content']}\n')
-            for thesis in keypoint['theses']:
+        for chapter in data['chapters']:
+            self.buffer.add(f'<a href="{url}&t={chapter['start_time']}">{int(int(chapter['start_time'])/60/60 % 60):02}:{int(int(chapter['start_time'])/60 % 60):02}:{int(int(chapter['start_time']) % 60):02}</a> {chapter['content']}\n')
+            for thesis in chapter['theses']:
                 self.buffer.add(f"\t• {thesis['content']}\n")
             self.buffer.add("\n")
 
