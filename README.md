@@ -5,12 +5,11 @@ This is a simple Telegram bot that wraps 300 YandexGPT summarizer into Telegram 
 Python, python-telegram-bot.
 
 # Usage
-Add [@Summarize300Bot](https://t.me/Summarize300Bot) to a group and pass URL as an argument to any command, e.g.:
-```
-/go@Summarize300Bot https://www.youtube.com/watch?v=ycfPF1gkNpE
-```
+Add [@Summarize300Bot](https://t.me/Summarize300Bot) to a group and reply and tag @Summarize300Bot to the message which has video pass URL
 
-Or self-host it independently.
+# Maintenance
+
+Requires yandex cookie refresh every month or so.
 
 # Development
 
